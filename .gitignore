@@ -1,0 +1,37 @@
+checkers_backend.egg-info/
+__pycache__/
+build/
+dist/
+*.egg-info/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.sqlite3
+*.db
+*.bak
+*.swp
+.DS_Store
+.idea/
+.vscode/
+*.iml
+.env
+
+*venv/
+node_modules/
+
+# Frontend build artifacts
+frontend/dist/
+frontend/.vite/
+frontend/.eslintcache
+
+# Backend test artifacts
+backend/.pytest_cache/
+backend/.ruff_cache/
+backend/.mypy_cache/
+backend/.coverage
+backend/htmlcov/
+
+# Caddy / Docker persistent data
+caddy_data/
+caddy_config/

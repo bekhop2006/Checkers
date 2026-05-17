@@ -1,0 +1,11 @@
+.venv
+.uv
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+*.db
+*.egg-info
+.coverage
+tests
+alembic/versions/__pycache__

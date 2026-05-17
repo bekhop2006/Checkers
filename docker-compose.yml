@@ -1,0 +1,72 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-checkers}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-checkers}
+      POSTGRES_DB: ${POSTGRES_DB:-checkers}
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-checkers} -d ${POSTGRES_DB:-checkers}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ENV: prod
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${POSTGRES_USER:-checkers}:${POSTGRES_PASSWORD:-checkers}@db:5432/${POSTGRES_DB:-checkers}}
+      JWT_SECRET: ${JWT_SECRET}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost,https://${DOMAIN}}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-haiku-4-5}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PRICE_MONTHLY: ${STRIPE_PRICE_MONTHLY:-}
+      STRIPE_PRICE_YEARLY: ${STRIPE_PRICE_YEARLY:-}
+      STRIPE_SUCCESS_URL: ${STRIPE_SUCCESS_URL:-https://${DOMAIN}/billing/success}
+      STRIPE_CANCEL_URL: ${STRIPE_CANCEL_URL:-https://${DOMAIN}/pricing}
+    expose:
+      - "8000"
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE: /api
+        VITE_WS_BASE: /ws
+    restart: unless-stopped
+    depends_on:
+      - api
+    expose:
+      - "80"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  dbdata:
+  caddy_data:
+  caddy_config:
