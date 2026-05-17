@@ -21,7 +21,6 @@ from ..games.models import Game, Move
 from .llm import narrate_many
 from .prompts import build_user_message, fallback_narrative
 
-# Thresholds (centipawns; positive = side-to-move advantage in eval terms).
 THRESHOLDS = {
     "blunder": 200,
     "mistake": 80,
@@ -67,30 +66,23 @@ def _replay_for_analysis(
     for m in persisted_moves:
         side = Color(m.side)
         legal = generate_legal_moves(board)
-        # Find the engine move that matches.
         path_tuple = tuple(tuple(s) for s in m.path)
         eng_move: EngineMove | None = next(
             (x for x in legal if x.path == path_tuple), None
         )
         if eng_move is None:
-            # Position out of sync; bail with what we have.
             break
 
-        # Eval before & after from the perspective of the side to move (the player).
-        # We negate "eval after" because after the move it's the opponent's turn.
         eval_before = evaluate_with_search(board, depth=4, time_budget=0.25)
-        # Find engine's preferred top moves (up to 3 by simple sort).
         scored: list[tuple[int, EngineMove]] = []
         for cand in legal:
             child = apply_move(board, cand)
-            # Negate because child has opponent to move.
             cscore = -evaluate_with_search(child, depth=3, time_budget=0.15)
             scored.append((cscore, cand))
         scored.sort(key=lambda x: -x[0])
         best_line_alg = [c.to_algebraic() for _, c in scored[:3]]
 
         new_board = apply_move(board, eng_move)
-        # eval_after from the SAME player's POV.
         eval_after = -evaluate_with_search(new_board, depth=4, time_budget=0.25)
         delta = eval_before - eval_after
 
@@ -110,7 +102,6 @@ def _replay_for_analysis(
 
 
 def _pick_pivotal(analyzed: list[_AnalyzedMove], limit: int = 5) -> list[_AnalyzedMove]:
-    # Rank by interestingness: blunders/mistakes hurt; brilliancies sparkle.
     def score(a: _AnalyzedMove) -> int:
         return max(a.eval_before - a.eval_after, a.eval_after - a.eval_before)
 
@@ -132,7 +123,6 @@ async def schedule_analysis(game_id: int) -> None:
         game.coach_status = "running"
         await session.commit()
 
-    # Heavy CPU work — run in a thread to keep the event loop responsive.
     try:
         async with SessionLocal() as session:
             game = (
@@ -145,7 +135,6 @@ async def schedule_analysis(game_id: int) -> None:
         analyzed = await asyncio.to_thread(_replay_for_analysis, persisted)
         pivotal = _pick_pivotal(analyzed)
 
-        # Decide audience based on game players' kids_mode flag.
         async with SessionLocal() as session:
             audience = "adult"
             game = (
@@ -163,7 +152,6 @@ async def schedule_analysis(game_id: int) -> None:
                 if u and u.is_pro:
                     audience = "expert"
 
-        # Build LLM payloads.
         narration_inputs = []
         for a in pivotal:
             narration_inputs.append(
@@ -185,7 +173,6 @@ async def schedule_analysis(game_id: int) -> None:
 
         narrative_by_ply = {a.ply: n for a, n in zip(pivotal, narratives, strict=False)}
 
-        # Persist annotations onto the Move rows.
         async with SessionLocal() as session:
             game = (
                 await session.execute(
@@ -205,7 +192,6 @@ async def schedule_analysis(game_id: int) -> None:
                     m.narrative = narrative_by_ply[m.ply]
                 elif a.classification in ("blunder", "mistake"):
                     m.narrative = fallback_narrative(a.classification)
-            # Summary blob: counts per side.
             summary = {
                 "audience": audience,
                 "counts": {"white": {}, "black": {}},

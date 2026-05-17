@@ -22,11 +22,8 @@ class Game(Base):
     __tablename__ = "games"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    # "vs_ai" | "friend" | "ranked"
     mode: Mapped[str] = mapped_column(String(16), nullable=False, default="vs_ai")
-    # "active" | "completed" | "abandoned"
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
-    # one of "white", "black", "draw", "in_progress"
     result: Mapped[str] = mapped_column(String(16), nullable=False, default="in_progress")
     end_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
@@ -36,10 +33,8 @@ class Game(Base):
     black_user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id"), index=True, nullable=True
     )
-    # AI metadata when no human plays one side.
     ai_difficulty: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
-    # Time control
     initial_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=300)
     increment_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     white_ms_left: Mapped[int] = mapped_column(Integer, nullable=False, default=300_000)
@@ -48,21 +43,17 @@ class Game(Base):
         DateTime(timezone=True), nullable=True
     )
 
-    # Friend link
     friend_token: Mapped[str | None] = mapped_column(
         String(32), unique=True, index=True, nullable=True
     )
 
-    # Current position snapshot (Board.to_dict()).
     position: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
-    # Coach state
     coach_status: Mapped[str] = mapped_column(
         String(16), nullable=False, default="not_started"
     )  # "not_started" | "running" | "ready" | "failed"
     coach_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
-    # ELO snapshots
     white_rating_before: Mapped[int | None] = mapped_column(Integer, nullable=True)
     black_rating_before: Mapped[int | None] = mapped_column(Integer, nullable=True)
     white_rating_after: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -88,16 +79,12 @@ class Move(Base):
         ForeignKey("games.id", ondelete="CASCADE"), index=True, nullable=False
     )
     ply: Mapped[int] = mapped_column(Integer, nullable=False)
-    # 0 = white, 1 = black (matches engine.Color values).
     side: Mapped[int] = mapped_column(Integer, nullable=False)
-    # Algebraic notation, e.g. "c3-d4" or "c3xe5xg3".
     notation: Mapped[str] = mapped_column(String(64), nullable=False)
-    # Full path as list of [row, col].
     path: Mapped[list] = mapped_column(JSON, nullable=False)
     captured: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     promoted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
-    # Per-move coach annotation, written by analyzer + LLM.
     classification: Mapped[str | None] = mapped_column(String(20), nullable=True)
     eval_before: Mapped[int | None] = mapped_column(Integer, nullable=True)
     eval_after: Mapped[int | None] = mapped_column(Integer, nullable=True)

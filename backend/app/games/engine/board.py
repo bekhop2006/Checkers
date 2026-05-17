@@ -96,17 +96,13 @@ def algebraic_to_square(s: str) -> Square:
 class Board:
     """Mutable 8x8 board state."""
 
-    # row-major, 8x8 grid of Piece values
     cells: list[list[Piece]] = field(
         default_factory=lambda: [[Piece.EMPTY] * BOARD_SIZE for _ in range(BOARD_SIZE)]
     )
     turn: Color = Color.WHITE
-    # Halfmoves since the last capture or man move (for the 15/50-move draw rule).
     plies_since_progress: int = 0
-    # Position history for 3-fold repetition (we store stringified positions).
     history: list[str] = field(default_factory=list)
 
-    # ---- factories / IO ---------------------------------------------------
     @classmethod
     def initial(cls) -> "Board":
         b = cls()
@@ -156,7 +152,6 @@ class Board:
             for r in range(BOARD_SIZE)
         )
 
-    # ---- accessors --------------------------------------------------------
     def get(self, sq: Square) -> Piece:
         r, c = sq
         return self.cells[r][c]
@@ -185,7 +180,6 @@ class Board:
                 men += 1
         return men, kings
 
-    # ---- copy / hash ------------------------------------------------------
     def clone(self) -> "Board":
         b = Board()
         b.cells = [row[:] for row in self.cells]
@@ -199,7 +193,6 @@ class Board:
         flat = "".join(PIECE_CHARS[self.cells[r][c]] for r in range(8) for c in range(8))
         return f"{flat}|{int(self.turn)}"
 
-    # ---- serialization for the wire ---------------------------------------
     def to_dict(self) -> dict:
         return {
             "cells": [[int(self.cells[r][c]) for c in range(8)] for r in range(8)],

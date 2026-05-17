@@ -11,8 +11,6 @@ from .board import BOARD_SIZE, Board, Color, Piece, is_dark
 MAN_VALUE = 100
 KING_VALUE = 300
 
-# Bonus for advancement: a white man on row 1 (about to crown) is worth
-# more than one on row 6. Index by row from the man's perspective.
 WHITE_MAN_ROW_BONUS = (0, 20, 14, 9, 5, 2, 0, 0)  # row 0..7 for white men (0 = crowned, already counted via king)
 BLACK_MAN_ROW_BONUS = (0, 0, 2, 5, 9, 14, 20, 0)
 
@@ -25,7 +23,6 @@ def evaluate_position(board: Board) -> int:
     for (r, c), piece in board.iter_pieces():
         if piece is Piece.WHITE_MAN:
             white_score += MAN_VALUE + WHITE_MAN_ROW_BONUS[r]
-            # Centre control: middle 4x4 = +4, edge files -2 (back rank exposed).
             white_score += _center_bonus(r, c)
         elif piece is Piece.WHITE_KING:
             white_score += KING_VALUE + _king_mobility_bonus(board, (r, c), Color.WHITE)
@@ -35,7 +32,6 @@ def evaluate_position(board: Board) -> int:
         elif piece is Piece.BLACK_KING:
             black_score += KING_VALUE + _king_mobility_bonus(board, (r, c), Color.BLACK)
 
-    # Tempo bonus: a little credit for the side to move.
     score = white_score - black_score
     if board.turn is Color.WHITE:
         return score + 3
@@ -59,5 +55,4 @@ def _king_mobility_bonus(board: Board, sq: tuple[int, int], color: Color) -> int
                 break
             bonus += 1
             r, c = r + dr, c + dc
-    # cap so kings don't dominate the score.
     return min(bonus, 12)

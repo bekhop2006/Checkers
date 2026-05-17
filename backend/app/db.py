@@ -21,8 +21,6 @@ class Base(DeclarativeBase):
 
 _settings = get_settings()
 
-# Hide the asyncpg/aiosqlite engine globals behind module-level singletons so
-# tests can swap the URL via env BEFORE importing this module if needed.
 engine = create_async_engine(
     _settings.database_url,
     pool_pre_ping=True,
@@ -45,7 +43,6 @@ async def session_scope() -> AsyncIterator[AsyncSession]:
 
 async def create_all() -> None:
     """Convenience for tests / dev: build schema directly without Alembic."""
-    # Import models so they register on Base.metadata.
     from . import auth  # noqa: F401
     from .billing import models as _billing_models  # noqa: F401
     from .games import models as _games_models  # noqa: F401

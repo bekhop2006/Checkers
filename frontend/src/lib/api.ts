@@ -77,7 +77,6 @@ export const api = {
   delete: <T = any>(p: string) => request<T>('DELETE', p),
 }
 
-// --- auth -------------------------------------------------------------------
 
 export interface SignupPayload {
   email: string
@@ -100,7 +99,6 @@ export const auth = {
     api.post<{ ticket: string; expires_in: number }>(`/auth/ws-ticket/${gameId}`),
 }
 
-// --- games ------------------------------------------------------------------
 
 export interface VsAiPayload {
   difficulty: 'easy' | 'medium' | 'hard' | 'expert'
@@ -124,7 +122,6 @@ export const games = {
   analyze: (id: number) => api.post<GameDetail>(`/coach/games/${id}/analyze`),
 }
 
-// --- leaderboard ------------------------------------------------------------
 
 export const leaderboard = {
   cities: () => api.get<{ cities: string[] }>('/leaderboard/cities'),
@@ -136,7 +133,6 @@ export const leaderboard = {
   weekly: (limit = 50) => api.get<LeaderboardEntry[]>(`/leaderboard/weekly?limit=${limit}`),
 }
 
-// --- puzzles ---------------------------------------------------------------
 
 export const puzzles = {
   daily: () => api.get<PuzzleDTO | null>('/puzzles/daily'),
@@ -144,7 +140,6 @@ export const puzzles = {
     api.post<PuzzleAttemptResult>('/puzzles/attempt', { puzzle_id, path }),
 }
 
-// --- billing ---------------------------------------------------------------
 
 export interface BillingConfig {
   configured: boolean

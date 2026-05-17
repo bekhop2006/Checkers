@@ -85,7 +85,6 @@ async def billing_portal(user: User = Depends(get_current_user)) -> dict:
     return {"url": portal.url}
 
 
-# ---- webhook ----------------------------------------------------------------
 
 
 @router.post("/webhook")
@@ -104,7 +103,6 @@ async def stripe_webhook(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"signature error: {e}") from e
 
-    # Idempotency.
     existing = await session.get(StripeEvent, event["id"])
     if existing is not None:
         return {"received": True, "duplicate": True}
@@ -123,8 +121,6 @@ async def stripe_webhook(
                 period_end = data.get("subscription_data", {}).get("trial_end") or data.get(
                     "expires_at"
                 )
-                # The accurate period end comes via customer.subscription.* events;
-                # set a fallback ~31 days from now if we have nothing else.
                 if not user.pro_until:
                     user.pro_until = datetime.fromtimestamp(
                         int(period_end) if period_end else int(datetime.now().timestamp()) + 60 * 60 * 24 * 31,

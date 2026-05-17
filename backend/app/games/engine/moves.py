@@ -60,7 +60,6 @@ class Move:
         return sep.join(square_to_algebraic(s) for s in self.path)
 
 
-# --- helpers ----------------------------------------------------------------
 
 
 def _forward_dr(color: Color) -> int:
@@ -83,7 +82,6 @@ def _promote(piece: Piece) -> Piece:
     return piece
 
 
-# --- capture chain exploration ---------------------------------------------
 
 
 @dataclass
@@ -114,7 +112,6 @@ def _explore_captures(
 
         for dr, dc in DIAGS:
             if state.piece.is_king:
-                # Scan along the diagonal for the first non-empty square.
                 r, c = cur_sq[0] + dr, cur_sq[1] + dc
                 enemy_sq: Square | None = None
                 while in_bounds((r, c)):
@@ -122,7 +119,6 @@ def _explore_captures(
                     if cell is Piece.EMPTY:
                         r, c = r + dr, c + dc
                         continue
-                    # Occupied. Blocked by own colour or already-captured enemy.
                     if cell.color is state.piece.color:
                         break
                     if (r, c) in state.captured:
@@ -131,7 +127,6 @@ def _explore_captures(
                     break
                 if enemy_sq is None:
                     continue
-                # Scan landing squares beyond the enemy along same diagonal.
                 lr, lc = enemy_sq[0] + dr, enemy_sq[1] + dc
                 while in_bounds((lr, lc)):
                     cell = working.get((lr, lc))
@@ -147,7 +142,6 @@ def _explore_captures(
                     recurse(new_state)
                     lr, lc = lr + dr, lc + dc
             else:
-                # Man jump: enemy is 1 diag away, landing is 2 diag away.
                 er, ec = cur_sq[0] + dr, cur_sq[1] + dc
                 lr, lc = cur_sq[0] + 2 * dr, cur_sq[1] + 2 * dc
                 if not in_bounds((lr, lc)):
@@ -188,7 +182,6 @@ def _explore_captures(
     return chains
 
 
-# --- non-capture quiet moves -----------------------------------------------
 
 
 def _quiet_moves(board: Board, sq: Square, piece: Piece) -> list[Move]:
@@ -212,7 +205,6 @@ def _quiet_moves(board: Board, sq: Square, piece: Piece) -> list[Move]:
     return moves
 
 
-# --- public API -------------------------------------------------------------
 
 
 def generate_legal_moves(board: Board) -> list[Move]:
@@ -228,7 +220,6 @@ def generate_legal_moves(board: Board) -> list[Move]:
         captures.extend(_explore_captures(board, sq, piece))
         if not captures:  # only build quiets while we have no captures so far
             quiets.extend(_quiet_moves(board, sq, piece))
-        # If we just found captures, drop any earlier quiets.
         if captures and quiets:
             quiets = []
 
@@ -250,21 +241,15 @@ def apply_move(board: Board, move: Move) -> Board:
     if piece is Piece.EMPTY:
         raise ValueError(f"no piece at {square_to_algebraic(move.start)}")
 
-    # Lift and place.
     nb.set(move.start, Piece.EMPTY)
-    # Walk through path purely to validate (path squares should all be empty
-    # except possibly the start). We don't need to do anything per-step.
     for cap_sq in move.captured:
         nb.set(cap_sq, Piece.EMPTY)
 
     final_piece = piece
-    # Promotion: either set by mid-chain logic (move.promoted) or by reaching
-    # the back rank at the end of a quiet move.
     if move.promoted or _promotes(piece, move.end):
         final_piece = _promote(piece)
     nb.set(move.end, final_piece)
 
-    # Progress tracking (draw rules).
     if move.is_capture or piece.is_man:
         nb.plies_since_progress = 0
     else:

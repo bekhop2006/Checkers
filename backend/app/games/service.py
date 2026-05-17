@@ -124,7 +124,6 @@ async def apply_engine_move(
             game.white_ms_left = max(0, game.white_ms_left - elapsed_ms)
         else:
             game.black_ms_left = max(0, game.black_ms_left - elapsed_ms)
-        # increment on completed move
         if side is Color.WHITE:
             game.white_ms_left += game.increment_seconds * 1000
         else:
@@ -188,7 +187,6 @@ async def _finalize_game(
     game.end_reason = end_reason
     game.ended_at = now_utc()
 
-    # Update ELO + counters only for ranked PvP games.
     if game.mode == "ranked" and game.white_user_id and game.black_user_id:
         white = await session.get(User, game.white_user_id)
         black = await session.get(User, game.black_user_id)
@@ -205,7 +203,6 @@ async def _finalize_game(
             _bump_stats(black, 1.0 - score_white)
 
     elif game.mode == "friend" and game.white_user_id and game.black_user_id:
-        # Friend casual games don't move rating but still count for stats.
         white = await session.get(User, game.white_user_id)
         black = await session.get(User, game.black_user_id)
         if white and black:

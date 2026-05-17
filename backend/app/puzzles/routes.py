@@ -85,7 +85,6 @@ async def attempt(
     correct = any(path_norm == list(sol) for sol in puzzle.solution)
     today = _today_iso()
 
-    # Record attempt.
     session.add(
         PuzzleAttempt(
             user_id=user.id,
@@ -99,7 +98,6 @@ async def attempt(
         if user.last_puzzle_date == today:
             pass  # already counted today
         else:
-            # Increment streak if previous day == today-1, else reset to 1.
             from datetime import datetime, timedelta
 
             try:

@@ -129,7 +129,6 @@ async def _clock_loop(game_id: int) -> None:
 
 @router.websocket("/ws/game/{game_id}")
 async def game_socket(websocket: WebSocket, game_id: int, t: str | None = None) -> None:
-    # --- authenticate the ticket ---
     if not t:
         await websocket.close(code=4401)
         return
@@ -144,7 +143,6 @@ async def game_socket(websocket: WebSocket, game_id: int, t: str | None = None) 
     user_id = int(payload["sub"])
 
     conn = await manager.connect(game_id, websocket, user_id)
-    # Start the clock loop the first time the room becomes non-empty.
     if manager.get_room(game_id) and (
         manager.get_room(game_id).clock_task is None
         or manager.get_room(game_id).clock_task.done()

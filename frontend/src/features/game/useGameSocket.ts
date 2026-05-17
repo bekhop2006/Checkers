@@ -42,7 +42,6 @@ export function useGameSocket(gameId: number | null, enabled: boolean) {
           }
         }
         if (cancelled) return
-        // Build absolute ws:// URL from window.location.
         const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
         const base = WS_BASE.startsWith('http')
           ? WS_BASE.replace(/^http/, 'ws')

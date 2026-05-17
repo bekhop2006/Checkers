@@ -7,7 +7,6 @@ import { useAuth } from '../features/auth/store'
 export function BillingSuccess() {
   const { setUser } = useAuth()
   useEffect(() => {
-    // Poll once to pick up webhook side-effects.
     auth.me().then(setUser).catch(() => {})
   }, [setUser])
 

@@ -24,7 +24,6 @@ def verify_password(password: str, hashed: str) -> bool:
         return False
 
 
-# --- JWT --------------------------------------------------------------------
 
 
 def _encode(payload: dict[str, Any], ttl: timedelta, scope: str) -> str:

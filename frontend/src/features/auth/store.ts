@@ -22,7 +22,6 @@ export const useAuth = create<AuthState>((set) => ({
       const u = await auth.me()
       set({ user: u })
     } catch (e) {
-      // Try to refresh once; if that fails too, treat as signed out.
       try {
         if (!(e instanceof ApiError)) throw e
         const u = await auth.refresh()

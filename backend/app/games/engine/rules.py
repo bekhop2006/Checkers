@@ -40,17 +40,12 @@ def game_outcome(board: Board) -> GameOutcome:
     if black_men + black_kings == 0:
         return GameOutcome(True, Color.WHITE, REASON_NO_PIECES)
 
-    # No legal moves for the side to move = LOSS for that side (Russian rule).
     if not generate_legal_moves(board):
         return GameOutcome(True, board.turn.opponent, REASON_NO_MOVES)
 
-    # Threefold repetition — the same position (incl. side to move) appeared
-    # three times in the game history.
     if board.history.count(board.position_key()) >= 3:
         return GameOutcome(True, None, REASON_REPETITION)
 
-    # 50-ply (25 full moves) without a capture or a man move => draw. This is
-    # a simplification of the FMJD endgame rules but is good enough for MVP.
     if board.plies_since_progress >= 50:
         return GameOutcome(True, None, REASON_PROGRESS_RULE)
 

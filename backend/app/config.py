@@ -15,29 +15,23 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # General
     domain: str = "localhost"
     env: Literal["dev", "test", "prod"] = "dev"
 
-    # DB
     database_url: str = "sqlite+aiosqlite:///./checkers.db"
     auto_create_schema: bool = True
 
-    # CORS
     allowed_origins: str = "http://localhost:5173,http://localhost"
 
-    # JWT
     jwt_secret: str = "dev-secret-change-me"
     jwt_alg: str = "HS256"
     access_token_ttl_minutes: int = 15
     refresh_token_ttl_days: int = 30
     ws_ticket_ttl_seconds: int = 60
 
-    # OpenAI
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
 
-    # Stripe
     stripe_secret_key: str = ""
     stripe_publishable_key: str = ""
     stripe_webhook_secret: str = ""

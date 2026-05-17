@@ -1,4 +1,3 @@
-// Shared types matching the FastAPI Pydantic schemas.
 
 export type Square = [number, number]
 
@@ -108,7 +107,6 @@ export interface PuzzleAttemptResult {
   solution: Square[][] | null
 }
 
-// Wire-level WebSocket message types
 export type WSMessage =
   | ({ type: 'state' } & GameDetail)
   | { type: 'tick'; white_ms_left: number; black_ms_left: number }

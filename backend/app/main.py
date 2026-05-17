@@ -46,8 +46,6 @@ def create_app() -> FastAPI:
     async def healthz() -> dict:
         return {"ok": True}
 
-    # All HTTP routes nested under /api so the Caddy reverse proxy can
-    # route cleanly (Caddyfile: /api/* -> backend; / -> frontend).
     app.include_router(auth_router, prefix="/api")
     app.include_router(user_router, prefix="/api")
     app.include_router(games_router, prefix="/api")
@@ -55,8 +53,6 @@ def create_app() -> FastAPI:
     app.include_router(leaderboard_router, prefix="/api")
     app.include_router(puzzles_router, prefix="/api")
     app.include_router(billing_router, prefix="/api")
-    # WebSocket lives at /ws/... (no /api prefix) — matches the deployment
-    # plan's Caddy routing.
     app.include_router(ws_router)
 
     return app

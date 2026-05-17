@@ -130,7 +130,6 @@ async def ws_ticket(game_id: int, user: User = Depends(get_current_user)) -> WsT
     )
 
 
-# ---- /users -----------------------------------------------------------
 
 
 @user_router.get("/me", response_model=UserOut)
@@ -159,7 +158,6 @@ async def update_me(
             raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail="pro skin")
         user.board_skin = payload.board_skin
     if payload.piece_skin is not None:
-        # Premium skins require Pro.
         from ..billing.skins import is_known_piece_skin, requires_pro
 
         if not is_known_piece_skin(payload.piece_skin):
@@ -181,18 +179,15 @@ async def kids_mode(
     session: AsyncSession = Depends(get_session),
 ) -> User:
     if user.kids_mode and not user.parental_pin_hash:
-        # Shouldn't happen, but be safe.
         user.parental_pin_hash = hash_password(payload.pin)
 
     if payload.enabled:
-        # Enabling kids mode: set the PIN if first time, otherwise verify.
         if user.parental_pin_hash and not verify_password(payload.pin, user.parental_pin_hash):
             raise HTTPException(status_code=401, detail="wrong pin")
         if not user.parental_pin_hash:
             user.parental_pin_hash = hash_password(payload.pin)
         user.kids_mode = True
     else:
-        # Disabling requires the PIN.
         if not user.parental_pin_hash or not verify_password(payload.pin, user.parental_pin_hash):
             raise HTTPException(status_code=401, detail="wrong pin")
         user.kids_mode = False

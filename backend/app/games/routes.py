@@ -125,7 +125,6 @@ async def _is_guest_account(session: AsyncSession, user_id: int | None) -> bool:
     return u.email.endswith(f"@{GUEST_EMAIL_DOMAIN}") and u.email.startswith("guest-")
 
 
-# ---- create -----------------------------------------------------------------
 
 
 @router.post("/vs-ai", response_model=GameDetailOut)
@@ -158,13 +157,10 @@ async def create_vs_ai(
     await session.commit()
     await session.refresh(game)
 
-    # If AI plays white, fire the first AI move immediately.
     if player_color is Color.BLACK:
         await _ai_move(session, game, payload.difficulty)
         await session.commit()
 
-    # Always re-load with eager `.moves` so the response serializer doesn't
-    # trigger lazy loading on the async session.
     return await _load_game(session, game.id)
 
 
@@ -227,8 +223,6 @@ async def join_friend_game(
     if not game:
         raise HTTPException(status_code=404, detail="invitation expired or not found")
     if user is None:
-        # Friend link supports "play without registration": provision an
-        # ephemeral account and set auth cookies for websocket gameplay.
         if game.mode == "ranked":
             raise HTTPException(status_code=401, detail="login required for ranked")
         user = await _create_guest_user(session)
@@ -240,8 +234,6 @@ async def join_friend_game(
     elif game.white_user_id is None:
         game.white_user_id = user.id
     else:
-        # If the room is full only because an ephemeral guest seat exists,
-        # allow a real authenticated user to take that seat in friend mode.
         if game.mode != "friend":
             raise HTTPException(status_code=409, detail="room is full")
 
@@ -258,7 +250,6 @@ async def join_friend_game(
     return await _load_game(session, game.id)
 
 
-# ---- moves (vs-AI only; multiplayer flows through WS) ----------------------
 
 
 @router.post("/{game_id}/move", response_model=GameDetailOut)
@@ -282,7 +273,6 @@ async def submit_move(
     board = board_from_game(game)
     player_side = color_for_user(game, user.id if user else None)
     if player_side is None:
-        # Guest playing as the side that owns no user_id.
         player_side = Color.WHITE if game.white_user_id is None else Color.BLACK
     if board.turn is not player_side:
         raise HTTPException(status_code=400, detail="not your turn")
@@ -313,7 +303,6 @@ async def _ai_move(session: AsyncSession, game: Game, difficulty: str) -> None:
     await apply_engine_move(session, game, board, sr.move, side=ai_side)
 
 
-# ---- read ------------------------------------------------------------------
 
 
 @router.get("/{game_id}", response_model=GameDetailOut)

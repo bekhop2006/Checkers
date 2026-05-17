@@ -19,11 +19,9 @@ async def _client() -> AsyncClient:
 
 async def test_signup_login_play_vs_ai_history():
     async with await _client() as c:
-        # Health
         r = await c.get("/healthz")
         assert r.status_code == 200
 
-        # Signup
         r = await c.post(
             "/api/auth/signup",
             json={
@@ -39,12 +37,10 @@ async def test_signup_login_play_vs_ai_history():
         assert me["rating"] == 1200
         assert "access_token" in c.cookies
 
-        # /users/me
         r = await c.get("/api/users/me")
         assert r.status_code == 200
         assert r.json()["display_name"] == "U One"
 
-        # Create vs-AI game (easy, white = us)
         r = await c.post(
             "/api/games/vs-ai",
             json={
@@ -59,19 +55,15 @@ async def test_signup_login_play_vs_ai_history():
         assert game["status"] == "active"
         assert game["mode"] == "vs_ai"
 
-        # Find a legal first move for white from the initial position:
-        # White man c3 -> d4 is always legal (path: [[5,2],[4,3]]).
         r = await c.post(
             f"/api/games/{gid}/move", json={"path": [[5, 2], [4, 3]]}
         )
         assert r.status_code == 200, r.text
         game = r.json()
-        # Two plies should be recorded (ours + AI's reply).
         assert len(game["moves"]) >= 2
         assert game["moves"][0]["notation"].startswith("c3")
         assert game["status"] in {"active", "completed"}
 
-        # History
         r = await c.get("/api/games/me/history")
         assert r.status_code == 200
         assert len(r.json()) == 1
@@ -166,7 +158,6 @@ async def test_friend_join_allows_real_user_to_replace_guest_seat():
         game = r.json()
         token = game["friend_token"]
 
-    # Seat a guest first.
     async with await _client() as guest:
         r = await guest.post(f"/api/games/join/{token}")
         assert r.status_code == 200, r.text
@@ -174,7 +165,6 @@ async def test_friend_join_allows_real_user_to_replace_guest_seat():
         guest_id = g1["black_user_id"]
         assert guest_id is not None
 
-    # Later, a real authenticated user joins and should replace the guest seat.
     async with await _client() as real_user:
         r = await real_user.post(
             "/api/auth/signup",

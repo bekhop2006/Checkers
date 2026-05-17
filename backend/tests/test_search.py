@@ -16,8 +16,6 @@ def test_best_move_from_initial_returns_legal_move():
 
 
 def test_best_move_takes_a_free_capture():
-    # White must capture the lone black man (mandatory) — search should
-    # produce a capture move and a positive score.
     b = Board.from_ascii(
         """
         ........
@@ -43,9 +41,7 @@ def test_evaluate_with_search_returns_int():
 
 
 def test_search_completes_under_time_budget():
-    # Even from a complex midgame the search must respect the time budget.
     b = Board.initial()
-    # Play 6 plies of opening so position is non-trivial.
     cur = b
     for _ in range(6):
         moves = generate_legal_moves(cur)

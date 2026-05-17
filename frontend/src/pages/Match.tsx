@@ -17,7 +17,6 @@ export function Match() {
   const nav = useNavigate()
   const id = gameId ? Number(gameId) : null
 
-  // Strategy: vs-AI games use REST; friend/ranked use WebSocket.
   const [restGame, setRestGame] = useState<GameDetail | null>(null)
   const [useWS, setUseWS] = useState(false)
 
@@ -48,7 +47,6 @@ export function Match() {
     if (game.white_user_id === user.id) return 0
     if (game.black_user_id === user.id) return 1
     if (game.mode === 'vs_ai') {
-      // In vs-AI guest mode (no auth) the "player" side is whichever has null user.
       return game.white_user_id == null && game.black_user_id == null
         ? 0
         : game.white_user_id == null

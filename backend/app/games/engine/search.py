@@ -16,8 +16,6 @@ from .moves import Move, apply_move, generate_legal_moves
 from .rules import REASON_NO_MOVES, REASON_NO_PIECES, game_outcome
 from .zobrist import zobrist_hash
 
-# A large value used to represent "winning". We add ply distance so the engine
-# prefers faster wins / slower losses.
 WIN_SCORE = 1_000_000
 
 
@@ -30,7 +28,6 @@ class SearchResult:
     elapsed_ms: int
 
 
-# Difficulty presets: (max_depth, time_budget_seconds).
 DIFFICULTY = {
     "easy": (2, 0.4),
     "medium": (4, 1.0),
@@ -54,7 +51,6 @@ def best_move(board: Board, difficulty: str = "medium") -> SearchResult:
 
     def order_moves(b: Board, moves: list[Move], tt_best: Move | None) -> list[Move]:
         def key(m: Move) -> tuple[int, int]:
-            # Captures first, then by length of capture, then by promotion.
             cap_score = -len(m.captured)
             promo_score = -1 if m.promoted else 0
             return (cap_score, promo_score)
@@ -75,7 +71,6 @@ def best_move(board: Board, difficulty: str = "medium") -> SearchResult:
         if out.is_over:
             if out.winner is None:
                 return 0
-            # From the perspective of the side to move:
             if out.winner is b.turn:
                 return WIN_SCORE - ply
             return -WIN_SCORE + ply
@@ -91,7 +86,6 @@ def best_move(board: Board, difficulty: str = "medium") -> SearchResult:
 
         moves = generate_legal_moves(b)
         if not moves:
-            # Shouldn't happen because game_outcome caught it, but be safe.
             return -WIN_SCORE + ply
 
         moves = order_moves(b, moves, tt_best)
@@ -116,7 +110,6 @@ def best_move(board: Board, difficulty: str = "medium") -> SearchResult:
     best_score = 0
     completed_depth = 0
 
-    # Iterative deepening so we always have *some* move even if we time out.
     for d in range(1, max_depth + 1):
         try:
             score = search(board, d, 0, -WIN_SCORE - 1, WIN_SCORE + 1)
@@ -132,7 +125,6 @@ def best_move(board: Board, difficulty: str = "medium") -> SearchResult:
             break
 
     if best_move_found is None:
-        # Fallback: any legal move so we never freeze.
         legal = generate_legal_moves(board)
         best_move_found = legal[0] if legal else None
         best_score = 0
@@ -147,8 +139,6 @@ def best_move(board: Board, difficulty: str = "medium") -> SearchResult:
     )
 
 
-# Convenience wrapper used by the AI Coach analyzer when it just needs a
-# numeric evaluation for a position (cheap shallow search).
 def evaluate_with_search(board: Board, depth: int = 4, time_budget: float = 0.5) -> int:
     """Run a quick search and return the score (cp, side-to-move POV)."""
     deadline = time.monotonic() + time_budget

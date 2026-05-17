@@ -151,7 +151,6 @@ body {
   .nav-link.active { @apply text-ink bg-surface2; }
 }
 
-/* Board piece styling */
 .board {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
@@ -233,6 +232,5 @@ body {
   opacity: .9;
 }
 
-/* Hide scrollbars in some chrome flows but keep accessibility */
 .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
 .scrollbar-thin::-webkit-scrollbar-thumb { background: rgb(var(--border)); border-radius: 8px; }

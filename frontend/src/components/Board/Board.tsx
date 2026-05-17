@@ -59,11 +59,9 @@ export function Board({
     const here: Square = [r, c]
     const cell = position.cells[r][c]
 
-    // If clicking a candidate next square, extend the path.
     if (path.length > 0) {
       if (candidatesFromSelected.nextSquares.some((s) => sqEq(s, here))) {
         const newPath = [...path, here]
-        // If this completes a legal full move, fire it.
         const sourceKey = `${path[0][0]},${path[0][1]}`
         const movesFromSource = bySource.get(sourceKey) ?? []
         const cont = continuations(movesFromSource, newPath)
@@ -72,7 +70,6 @@ export function Board({
           setPath([])
           return
         }
-        // Auto-fire if it's already a unique completion (mandatory continuation).
         if (cont.complete && cont.nextSquares.length === 0) {
           onMove(newPath)
           setPath([])
@@ -81,11 +78,9 @@ export function Board({
         }
         return
       }
-      // Clicked elsewhere — re-select.
       setPath([])
     }
 
-    // No path yet: pick a source.
     if (colorOf(cell) === perspective && sources.has(`${r},${c}`)) {
       setPath([here])
     } else {
@@ -96,7 +91,6 @@ export function Board({
   const targetSquares = useMemo(() => {
     if (path.length === 0) {
       if (!alwaysHint) return new Set<string>()
-      // In always-hint mode we don't pre-fill (the user still picks a source).
       return new Set<string>()
     }
     return new Set(candidatesFromSelected.nextSquares.map(([r, c]) => `${r},${c}`))
@@ -118,7 +112,6 @@ export function Board({
           const isCaptureTarget =
             isLegalTarget &&
             candidatesFromSelected.nextSquares.some((sq) => sqEq(sq, [r, c])) &&
-            // Heuristic: if the diagonal distance is > 1 it's a capture.
             (path.length > 0 && Math.abs(r - path[path.length - 1][0]) > 1)
           const isSourceHint =
             alwaysHint && path.length === 0 && sources.has(`${r},${c}`) && colorOf(piece) === perspective

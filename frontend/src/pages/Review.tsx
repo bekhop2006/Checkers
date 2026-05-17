@@ -6,8 +6,6 @@ import { MoveList } from '../components/MoveList/MoveList'
 import { games } from '../lib/api'
 import type { BoardPosition, GameDetail } from '../types'
 
-// Replay state by applying the persisted move paths sequentially.
-// We rely on the wire move.path data; for each path we update cells.
 
 function applyPath(pos: BoardPosition, path: number[][], captured: number[][], promoted: boolean): BoardPosition {
   const cells = pos.cells.map((row) => [...row])
@@ -17,7 +15,6 @@ function applyPath(pos: BoardPosition, path: number[][], captured: number[][], p
   for (const [r, c] of captured) cells[r][c] = 0
   const [tr, tc] = path[path.length - 1]
   let final = piece
-  // mid-chain or end promotion: 1=wM->2, 3=bM->4
   if (promoted || (piece === 1 && tr === 0) || (piece === 3 && tr === 7)) {
     if (piece === 1) final = 2
     if (piece === 3) final = 4
@@ -50,11 +47,9 @@ export function Review() {
     if (!gameId) return
     const id = Number(gameId)
     games.get(id).then(setGame)
-    // Kick analysis (idempotent on the backend).
     games.analyze(id).then(setGame).catch(() => {})
   }, [gameId])
 
-  // Re-poll while running coach analysis.
   useEffect(() => {
     if (!game || game.coach_status !== 'running') return
     setAnalyzing(true)
