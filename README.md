@@ -1,197 +1,194 @@
-# Checkers — шашки нового поколения
+# Checkers — modern Russian draughts (8×8)
 
-Современная веб-платформа для игры в **русские шашки 8×8** с реалтайм-мультиплеером, ИИ-тренером на базе OpenAI, рейтингом по городам, режимом для детей и **Stripe-подпиской Pro**.
+Современная веб‑платформа для **русских шашек 8×8**: реалтайм‑мультиплеер, партии против ИИ, разбор игры (AI Coach), задачи, локальные лидерборды и **Pro‑подписка через Stripe**.
 
-> 🎓 Хакатон nFactorial 26 · Beknur Tanibergeb · Уровень «Великий».
-
-[Live demo](https://159.89.23.237.sslip.io) · [GitHub](https://github.com/bekhop2006/checkers)
-
-> Перед отправкой замените ссылки выше на реальные URL деплоя и репозитория.
+Проект: **Beknur Tanibergen** · **nFactorial Incubator 26**
 
 ---
 
-## Для кого и зачем
+## Features
 
-Шашки — лучшая на свете игра, которой не везёт с цифровым опытом: интерфейсы из 2007-го, унылые отчёты и нулевая социалка. Мы строим продукт, который объединяет **четыре аудитории** в одном приложении:
+- **Realtime multiplayer**: friend‑link комнаты + ranked (WebSocket, server‑authoritative).
+- **Checkers engine**: чистый Python движок + alpha‑beta поиск.
+- **AI Coach**: аннотации ходов + человеческие объяснения (опционально через OpenAI).
+- **Puzzles**: ежедневные задачи + стрик.
+- **Kids Mode**: подсказки/упрощение (и ограничения на некоторые функции).
+- **Stripe Pro** (test mode): Checkout + Portal + webhook с подписью.
 
-- **Блиц-игроки** — короткие азартные дуэли 1/3/5 минут.
-- **Дети 6-12** — мягкий режим с подсказками и понятным ИИ-тренером, защита PIN-ом.
-- **Те, кто тренирует мышление** — ежедневные тактические задачи и стрики.
-- **Любители онлайн-партий** — мультиплеер по ссылке без регистрации соперника.
+## Tech stack
 
-Поверх — **AI Coach**, который не просто оценивает ходы в сантипешках, а **объясняет на человеческом языке**, что было лучше («Здесь ты мог сделать двойное взятие на c5, а сыгранный ход открыл дамку сопернику»). И настоящий **paywall на Stripe** — продукт сразу выглядит как стартап, а не курсовая.
+- Backend: FastAPI, async SQLAlchemy, PostgreSQL, WebSockets
+- Frontend: Vite + React + TypeScript + Tailwind, Zustand
+- Infra: Docker Compose + Caddy (auto‑HTTPS)
 
-## Почему это ценно
+### Architecture (high level)
 
-| Фишка | Что выделяет на рынке |
-|---|---|
-| 🤝 **Мультиплеер по ссылке** | WebSocket-комнаты, сервер — единственный источник правды, переподключение без потери позиции, гостевой вход по ссылке без регистрации (friend mode) |
-| 🤖 **AI Coach (engine + OpenAI)** | Свой alpha-beta движок находит блёндеры → OpenAI формулирует разбор простыми словами, по аудитории (adult / kid / expert) |
-| 🏙 **Рейтинг по городам** | Локальный ELO для Алматы / Астаны / Шымкента / … — соревнование со «своими» |
-| 🧒 **Детский режим** | Большие фигуры, всегда видимые подсказки, кид-тон ИИ-тренера, защита PIN |
-| 💳 **Pro на Stripe (test mode)** | Реальный Checkout, webhook с подписью, премиум-скины (реально применяются к доске/фигурам) и эксперт-уровень ИИ |
-| ⚡ **Self-host** | Один `docker compose up` поднимает Caddy + auto-HTTPS, frontend, FastAPI и Postgres |
+- **Frontend** (Vite) talks to the API via `VITE_API_BASE` (default `/api`) and to realtime games via `VITE_WS_BASE` (default `/ws`).
+- **Backend** mounts REST under `/api/*` and WebSocket under `/ws/*` (see `backend/app/main.py`).
+- **Caddy** terminates TLS and routes:
+  - `/` → `web` (frontend)
+  - `/api/*` → `api` (FastAPI)
+  - `/ws/*` → `api` (WebSocket)
+- **PostgreSQL** stores users, games, moves, puzzles, Stripe events/subscription state.
 
-## Стек
+### How it works
 
-| Уровень | Технологии |
-|---|---|
-| Backend | **FastAPI** + async SQLAlchemy 2.x + **PostgreSQL** + WebSockets, **pure-Python** движок русских шашек (alpha-beta, transposition table) |
-| AI Coach | Собственный анализатор позиции + **OpenAI** (`gpt-4o-mini`) |
-| Frontend | **Vite + React 18 + TypeScript**, Tailwind, Zustand, TanStack Query, чистые CSS-анимации |
-| Биллинг | **Stripe Checkout** + Customer Portal + webhook с проверкой подписи |
-| Деплой | **Docker Compose** + **Caddy** (auto-HTTPS Let's Encrypt) |
+#### Auth
+
+- Cookie‑based auth. Frontend always sends `credentials: 'include'` (see `frontend/src/lib/api.ts`).
+- If a request gets `401`, the client tries one refresh (`POST /api/auth/refresh`) and retries the original request.
+
+#### Games (REST + WS)
+
+- Create games via REST:
+  - `POST /api/games/vs-ai`
+  - `POST /api/games/friend`
+  - `POST /api/games/ranked`
+- Realtime games use WS:
+  - Client requests a short‑lived ticket: `POST /api/auth/ws-ticket/{gameId}`
+  - Then connects to `/ws/...` with that ticket.
+- Moves are always **validated server‑side** with the engine; the server is the source of truth.
+
+#### Engine + AI Coach
+
+- Engine lives in `backend/app/games/engine/` and is **pure Python** (rules + move generation + search).
+- AI Coach is optional:
+  - If `OPENAI_API_KEY` is set, it produces human‑readable explanations.
+  - If it’s empty, the app still runs end‑to‑end (coach falls back to templates).
+
+#### Billing (Stripe)
+
+- Stripe is **optional** and intended for test mode in hackathon/demo.
+- Backend exposes:
+  - `GET /api/billing/config` (feature flags + prices + skins)
+  - `POST /api/billing/checkout`
+  - `POST /api/billing/portal`
+  - `POST /api/billing/webhook` (signature validation via `STRIPE_WEBHOOK_SECRET`)
 
 ---
 
-## Быстрый старт (локально)
+## Quick start (local dev)
 
-### Требования
-- Python 3.11+ и [uv](https://docs.astral.sh/uv/) (`brew install uv` / `pipx install uv`)
+### Prerequisites
+
+- Python 3.11+
 - Node.js 20+
-- (опционально) [Stripe CLI](https://stripe.com/docs/stripe-cli) для приёма вебхуков
+- Docker (optional, for production‑like run)
 
-### 1. Backend
+### 1) Configure env
 
 ```bash
-cp .env.example .env                # отредактируйте по желанию
-cd backend
-uv sync --extra dev                 # установка зависимостей
-uv run python -m app.scripts.seed   # cоздаст таблицы + 5 стартовых задач + demo-user
-uv run uvicorn app.main:app --reload --port 8000
+cp .env.example .env
 ```
 
-API на `http://localhost:8000`, healthcheck — `/healthz`.
+Minimal required for local play:
+- `JWT_SECRET` (set to any random string for dev)
 
-Если используете docker-compose и в `.env` стоит `DATABASE_URL=...@db:5432/...`,
-то сидинг удобнее запускать через контейнер:
+Optional:
+- `OPENAI_API_KEY`, `OPENAI_MODEL` (AI Coach)
+- `STRIPE_*` keys + price ids (Pro flows)
+- `ALLOWED_ORIGINS` (CORS / cookies)
+
+### 2) Install deps
+
+```bash
+make install
+```
+
+### 3) Run backend + frontend
+
+In two terminals:
+
+```bash
+make backend
+```
+
+```bash
+make frontend
+```
+
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8000` (health: `/healthz`)
+
+### 4) Seed demo data (optional)
+
+If you’re running via Docker (recommended for Postgres seeding):
 
 ```bash
 make seed
 ```
 
-Для полностью локального сидинга (без Postgres) есть:
+Or local SQLite seed:
 
 ```bash
 make seed-local
 ```
 
-### 2. Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev                          # http://localhost:5173
-```
-
-Vite уже проксирует `/api` и `/ws` на бэкенд (см. `vite.config.ts`).
-
-### 3. Stripe (опционально, тестовый режим)
-
-```bash
-stripe listen --forward-to localhost:8000/api/billing/webhook
-# Скопируйте whsec_… в .env (STRIPE_WEBHOOK_SECRET)
-```
-
-Тестовая карта в Checkout: **`4242 4242 4242 4242`**, любая дата в будущем, любой CVC.
-
-### 4. OpenAI (опционально)
-
-Без `OPENAI_API_KEY` AI Coach работает на шаблонных описаниях — приложение демонстрируется в полном виде, просто без живой LLM-нарративы.
-
 ---
 
-## Деплой на сервер (Docker + Caddy + auto-HTTPS)
+## Run with Docker (prod-ish)
 
 ```bash
-git clone https://github.com/your-handle/checkers && cd checkers
-cp .env.example .env       # обязательно укажите DOMAIN, JWT_SECRET, STRIPE_*, OPENAI_API_KEY
 docker compose up -d --build
 ```
 
-- Caddy сам получит TLS-сертификат от Let's Encrypt для `$DOMAIN`.
-- `api` дойдёт до `/healthz` через `db.healthy`.
-- Postgres-данные живут в volume `dbdata`.
+Caddy will serve:
+- frontend on `https://$DOMAIN`
+- backend under `/api`
+- websocket under `/ws`
 
-Логи: `docker compose logs -f`. Стоп: `docker compose down`.
+See `.env.example` for `DOMAIN`, Stripe URLs, and CORS configuration.
 
----
-
-## Архитектура
-
-```
-┌────────┐   HTTPS   ┌────────┐   /api/*  ┌──────────────┐    asyncpg     ┌──────────┐
-│ Browser│─────────▶│  Caddy │───────────▶│  FastAPI app │───────────────▶│ Postgres │
-└────────┘           │  TLS   │   /ws/*    │  + engine    │                │  16      │
-     ▲ WSS ──────────│        │───────────▶│  + AI Coach  │                └──────────┘
-     │               └────────┘            │  + Stripe    │
-     │                                     └──────┬───────┘
-     │                                            │ HTTPS
-     │                                            ▼
-     │                                     ┌──────────────┐
-     │                                     │ OpenAI API   │
-     └─────────────────────────────────────│ Stripe API   │
-                                           └──────────────┘
-```
-
-- Движок шашек — **чистый Python без FastAPI-импортов**, используется и для AI-соперника, и для AI Coach.
-- Server-authoritative: WebSocket принимает только `{type:"move", path}`, валидирует через движок, применяет, броадкастит обновлённое состояние и таймеры.
-- Режимы матчей: `vs_ai`, `friend`, `ranked` (в ranked изменяется ELO; в friend поддержан гостевой вход по ссылке).
-- AI Coach запускается **фоновой задачей** в момент завершения партии: движок размечает ходы (blunder / mistake / brilliant), LLM пишет 3–5 предложений на самые ключевые моменты.
-- Stripe webhook валидирует подпись (`stripe.Webhook.construct_event`) и хранит `event.id` в таблице `stripe_events` для **идемпотентности**.
-- Kids Mode policy: в kids mode отключены чат в партиях и billing endpoints (`/billing/checkout`, `/billing/portal`).
-
-## Структура репозитория
-
-```
-Checkers/
-  backend/
-    app/
-      games/engine/   ← движок русских шашек + alpha-beta поиск
-      games/          ← REST + WebSocket multiplayer + clocks + ELO
-      auth/           ← JWT-cookies, кэшируемый user lookup
-      coach/          ← анализатор + OpenAI prompts
-      billing/        ← Stripe Checkout + Portal + webhooks
-      leaderboard/    ← global / city / weekly
-      puzzles/        ← daily puzzle + streaks
-      scripts/seed.py ← наполнение базы стартовыми данными
-    tests/            ← 31 тест: правила движка + API smoke + поиск + WS manager
-  frontend/
-    src/
-      components/Board ← клик-в-клик с подсветкой обязательных взятий
-      features/game    ← WS-хук с автореконнектом
-      pages            ← Home, Match, Review, Leaderboard, Pricing, Profile, Settings, Puzzle…
-  docker-compose.yml + Caddyfile + .env.example
-  Makefile  (быстрые команды для dev / test / migrate / seed)
-```
-
----
-
-## Тесты
+Tip: for first-time DB init in Docker, use:
 
 ```bash
-cd backend && uv run pytest
+make seed
 ```
 
-31 тест: 19 покрывают rule-edge cases движка (мульти-капчер, mid-chain promotion, flying king, mandatory capture в любую сторону, stalemate, threefold repetition, 50-move rule), 4 — поисковый движок (находит выигрышное взятие, укладывается в time-budget), 7 — HTTP API smoke/e2e (signup → vs-AI → history, guest join по ссылке, ranked create/join, Pro/kids billing guards), 1 — проверка WS connection manager.
+---
+
+## Tests
+
+Backend:
+
+```bash
+make test
+```
 
 Frontend:
+
 ```bash
-cd frontend && npm run typecheck && npm run build
+cd frontend && npm run build
+```
+
+Note: the current `frontend` lint script uses ESLint v9 which expects `eslint.config.*`. If you want linting, you’ll need to add/migrate the config.
+
+---
+
+## Repo structure
+
+```
+backend/
+  app/
+    games/engine/     # russian checkers rules + search
+    games/            # REST + WS + clocks + ELO
+    auth/             # auth/session
+    coach/            # AI Coach pipeline
+    billing/          # Stripe Checkout/Portal/Webhook
+    puzzles/          # puzzles + streak
+frontend/
+  src/
+    components/
+    features/
+    pages/
+docker-compose.yml
+Caddyfile
+.env.example
+Makefile
 ```
 
 ---
 
-## План дальше (если время в хакатоне ещё останется)
+## Credits
 
-- 🌐 Полная RU/EN локализация + i18n-словари.
-- 🔊 Звуковой дизайн (move / capture / flag).
-- 🎯 ELO-матчмейкинг (сейчас только friend-link и vs-AI).
-- 🎮 International 10×10 + English checkers как дополнительные режимы.
-- 🏟 Турниры на еженедельной основе.
-
----
-
-## Креды
-
-Сделал **Beknur Tanibergeb** на nFactorial 26. Спасибо менторам и судьям — играйте сами и подскажите, что улучшить.
+Built by **Beknur Tanibergen** for **nFactorial Incubator 26**.
