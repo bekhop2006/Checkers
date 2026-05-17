@@ -91,13 +91,24 @@ export function Home() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
       <section className="mb-10">
-        <h1 className="text-4xl sm:text-5xl font-display font-bold leading-tight">
-          Шашки нового поколения.
-        </h1>
-        <p className="text-ink2 text-lg mt-3 max-w-2xl">
-          Блиц-дуэли, ИИ-тренер, рейтинг по городам, режим для детей и Pro-подписка —
-          всё, что должно быть у современной игровой платформы.
-        </p>
+        <div className="glass rounded-3xl p-6 sm:p-8 overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+            <div>
+              <h1 className="text-4xl sm:text-5xl font-display font-bold leading-tight">
+                Шашки нового поколения.
+              </h1>
+              <p className="text-ink2 text-lg mt-3 max-w-2xl">
+                Блиц-дуэли, ИИ-тренер, рейтинг по городам, режим для детей и Pro-подписка —
+                всё, что должно быть у современной игровой платформы.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="chip">WebSocket</span>
+              <span className="chip">AI Coach</span>
+              <span className="chip">Skins</span>
+            </div>
+          </div>
+        </div>
       </section>
 
       <div className="grid lg:grid-cols-3 gap-6">

@@ -89,19 +89,21 @@ export function Match() {
         {invite && (game.mode === 'friend' || game.mode === 'ranked') && (
           <InviteBanner token={invite} />
         )}
-        <Board
-          position={game.position}
-          legalMoves={isMine ? game.legal_moves : []}
-          onMove={submitMove}
-          perspective={myColor}
-          flip={flip}
-          lastMove={lastMove}
-          alwaysHint={Boolean(user?.kids_mode)}
-        />
-        <GameStatus game={game} mine={myColor} />
+        <div className="glass rounded-2xl p-3 sm:p-4">
+          <Board
+            position={game.position}
+            legalMoves={isMine ? game.legal_moves : []}
+            onMove={submitMove}
+            perspective={myColor}
+            flip={flip}
+            lastMove={lastMove}
+            alwaysHint={Boolean(user?.kids_mode)}
+          />
+          <GameStatus game={game} mine={myColor} />
+        </div>
       </div>
 
-      <aside className="space-y-4">
+      <aside className="space-y-4 lg:sticky lg:top-20 self-start">
         {useWS && ws.error && (
           <div className="card p-3 text-sm text-danger">
             {translateWsError(ws.error)}
