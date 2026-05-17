@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import secrets
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from sqlalchemy import desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +20,7 @@ from ..config import get_settings
 from ..db import get_session
 from .engine import Color
 from .engine.search import best_move as engine_best_move
+from .manager import manager
 from .models import Game
 from .schemas import (
     CreateFriendIn,
@@ -39,6 +41,7 @@ from .service import (
 )
 
 router = APIRouter(prefix="/games", tags=["games"])
+GUEST_EMAIL_DOMAIN = "guest.checkers-play.app"
 
 
 async def _load_game(session: AsyncSession, game_id: int) -> Game:
@@ -89,6 +92,37 @@ def _set_auth_cookies(response: Response, user_id: int) -> None:
         max_age=settings.refresh_token_ttl_days * 86400,
         path="/api/auth",
     )
+
+
+async def _create_guest_user(session: AsyncSession) -> User:
+    """Create a guest user with a syntactically valid non-reserved email."""
+    for _ in range(8):
+        suffix = secrets.token_hex(4)
+        email = f"guest-{suffix}@{GUEST_EMAIL_DOMAIN}"
+        exists = (
+            await session.execute(select(User.id).where(User.email == email))
+        ).scalar_one_or_none()
+        if exists is not None:
+            continue
+        user = User(
+            email=email,
+            password_hash=hash_password(secrets.token_urlsafe(24)),
+            display_name=f"Guest-{suffix}",
+            city=None,
+        )
+        session.add(user)
+        await session.flush()
+        return user
+    raise HTTPException(status_code=500, detail="failed to provision guest user")
+
+
+async def _is_guest_account(session: AsyncSession, user_id: int | None) -> bool:
+    if not user_id:
+        return False
+    u = await session.get(User, user_id)
+    if not u:
+        return False
+    return u.email.endswith(f"@{GUEST_EMAIL_DOMAIN}") and u.email.startswith("guest-")
 
 
 # ---- create -----------------------------------------------------------------
@@ -197,15 +231,7 @@ async def join_friend_game(
         # ephemeral account and set auth cookies for websocket gameplay.
         if game.mode == "ranked":
             raise HTTPException(status_code=401, detail="login required for ranked")
-        suffix = secrets.token_hex(4)
-        user = User(
-            email=f"guest-{suffix}@guest.local",
-            password_hash=hash_password(secrets.token_urlsafe(24)),
-            display_name=f"Guest-{suffix}",
-            city=None,
-        )
-        session.add(user)
-        await session.flush()
+        user = await _create_guest_user(session)
         _set_auth_cookies(response, user.id)
     if game.white_user_id == user.id or game.black_user_id == user.id:
         return await _load_game(session, game.id)
@@ -214,7 +240,20 @@ async def join_friend_game(
     elif game.white_user_id is None:
         game.white_user_id = user.id
     else:
-        raise HTTPException(status_code=409, detail="room is full")
+        # If the room is full only because an ephemeral guest seat exists,
+        # allow a real authenticated user to take that seat in friend mode.
+        if game.mode != "friend":
+            raise HTTPException(status_code=409, detail="room is full")
+
+        white_is_guest = await _is_guest_account(session, game.white_user_id)
+        black_is_guest = await _is_guest_account(session, game.black_user_id)
+
+        if white_is_guest and game.white_user_id and not manager.is_user_connected(game.id, game.white_user_id):
+            game.white_user_id = user.id
+        elif black_is_guest and game.black_user_id and not manager.is_user_connected(game.id, game.black_user_id):
+            game.black_user_id = user.id
+        else:
+            raise HTTPException(status_code=409, detail="room is full")
     await session.commit()
     return await _load_game(session, game.id)
 
@@ -292,11 +331,15 @@ async def my_history(
     session: AsyncSession = Depends(get_session),
 ) -> list[Game]:
     rows = (
-        await session.execute(
-            select(Game)
-            .where(or_(Game.white_user_id == user.id, Game.black_user_id == user.id))
-            .order_by(desc(Game.created_at))
-            .limit(limit)
+        (
+            await session.execute(
+                select(Game)
+                .where(or_(Game.white_user_id == user.id, Game.black_user_id == user.id))
+                .order_by(desc(Game.created_at))
+                .limit(limit)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return list(rows)

@@ -15,7 +15,7 @@ const tcs: TC[] = [
 ]
 
 export function Home() {
-  const { user } = useAuth()
+  const { user, setUser } = useAuth()
   const nav = useNavigate()
   const [busy, setBusy] = useState(false)
   const [diff, setDiff] = useState<Diff>('medium')
@@ -53,6 +53,11 @@ export function Home() {
       })
       nav(`/play/${g.id}?invite=${g.friend_token}`)
     } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        setUser(null)
+        nav('/login?next=/')
+        return
+      }
       setErr(e instanceof ApiError ? e.message : String(e))
     } finally {
       setBusy(false)
@@ -72,6 +77,11 @@ export function Home() {
       })
       nav(`/play/${g.id}?invite=${g.friend_token}`)
     } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        setUser(null)
+        nav('/login?next=/')
+        return
+      }
       setErr(e instanceof ApiError ? e.message : String(e))
     } finally {
       setBusy(false)
@@ -103,6 +113,7 @@ export function Home() {
                   <button
                     key={t.label}
                     onClick={() => setTc(t)}
+                    type="button"
                     className={`btn ${tc.label === t.label ? 'btn-primary' : ''}`}
                   >
                     {t.label}
@@ -118,6 +129,7 @@ export function Home() {
                   <button
                     key={d}
                     onClick={() => setDiff(d)}
+                    type="button"
                     className={`btn ${diff === d ? 'btn-primary' : ''} ${
                       d === 'expert' && !user?.is_pro ? 'opacity-60' : ''
                     }`}
@@ -138,6 +150,7 @@ export function Home() {
                   <button
                     key={s}
                     onClick={() => setSide(s)}
+                    type="button"
                     className={`btn ${side === s ? 'btn-primary' : ''}`}
                   >
                     {s === 'white' ? 'Белыми' : s === 'black' ? 'Чёрными' : 'Случайно'}
@@ -152,14 +165,25 @@ export function Home() {
               <button
                 className="btn btn-primary px-6 py-3 text-base"
                 onClick={startVsAi}
+                type="button"
                 disabled={busy}
               >
                 Играть с ИИ
               </button>
-              <button className="btn px-6 py-3 text-base" onClick={startFriend} disabled={busy}>
+              <button
+                className="btn px-6 py-3 text-base"
+                onClick={startFriend}
+                type="button"
+                disabled={busy}
+              >
                 Создать комнату с другом
               </button>
-              <button className="btn px-6 py-3 text-base" onClick={startRanked} disabled={busy}>
+              <button
+                className="btn px-6 py-3 text-base"
+                onClick={startRanked}
+                type="button"
+                disabled={busy}
+              >
                 Рейтинговая дуэль
               </button>
             </div>

@@ -1,10 +1,10 @@
 # Checkers — шашки нового поколения
 
-Современная веб-платформа для игры в **русские шашки 8×8** с реалтайм-мультиплеером, ИИ-тренером на базе Claude, рейтингом по городам, режимом для детей и **Stripe-подпиской Pro**.
+Современная веб-платформа для игры в **русские шашки 8×8** с реалтайм-мультиплеером, ИИ-тренером на базе OpenAI, рейтингом по городам, режимом для детей и **Stripe-подпиской Pro**.
 
 > 🎓 Хакатон nFactorial 26 · Beknur Tanibergeb · Уровень «Великий».
 
-[Live demo](https://your-domain.example) · [GitHub](https://github.com/your-handle/checkers)
+[Live demo](https://159.89.23.237.sslip.io) · [GitHub](https://github.com/bekhop2006/checkers)
 
 > Перед отправкой замените ссылки выше на реальные URL деплоя и репозитория.
 
@@ -26,7 +26,7 @@
 | Фишка | Что выделяет на рынке |
 |---|---|
 | 🤝 **Мультиплеер по ссылке** | WebSocket-комнаты, сервер — единственный источник правды, переподключение без потери позиции, гостевой вход по ссылке без регистрации (friend mode) |
-| 🤖 **AI Coach (engine + Claude)** | Свой alpha-beta движок находит блёндеры → Claude формулирует разбор простыми словами, по аудитории (adult / kid / expert) |
+| 🤖 **AI Coach (engine + OpenAI)** | Свой alpha-beta движок находит блёндеры → OpenAI формулирует разбор простыми словами, по аудитории (adult / kid / expert) |
 | 🏙 **Рейтинг по городам** | Локальный ELO для Алматы / Астаны / Шымкента / … — соревнование со «своими» |
 | 🧒 **Детский режим** | Большие фигуры, всегда видимые подсказки, кид-тон ИИ-тренера, защита PIN |
 | 💳 **Pro на Stripe (test mode)** | Реальный Checkout, webhook с подписью, премиум-скины (реально применяются к доске/фигурам) и эксперт-уровень ИИ |
@@ -37,7 +37,7 @@
 | Уровень | Технологии |
 |---|---|
 | Backend | **FastAPI** + async SQLAlchemy 2.x + **PostgreSQL** + WebSockets, **pure-Python** движок русских шашек (alpha-beta, transposition table) |
-| AI Coach | Собственный анализатор позиции + **Anthropic Claude** (`claude-haiku-4-5`) с **prompt caching** |
+| AI Coach | Собственный анализатор позиции + **OpenAI** (`gpt-4o-mini`) |
 | Frontend | **Vite + React 18 + TypeScript**, Tailwind, Zustand, TanStack Query, чистые CSS-анимации |
 | Биллинг | **Stripe Checkout** + Customer Portal + webhook с проверкой подписи |
 | Деплой | **Docker Compose** + **Caddy** (auto-HTTPS Let's Encrypt) |
@@ -63,6 +63,19 @@ uv run uvicorn app.main:app --reload --port 8000
 
 API на `http://localhost:8000`, healthcheck — `/healthz`.
 
+Если используете docker-compose и в `.env` стоит `DATABASE_URL=...@db:5432/...`,
+то сидинг удобнее запускать через контейнер:
+
+```bash
+make seed
+```
+
+Для полностью локального сидинга (без Postgres) есть:
+
+```bash
+make seed-local
+```
+
 ### 2. Frontend
 
 ```bash
@@ -82,9 +95,9 @@ stripe listen --forward-to localhost:8000/api/billing/webhook
 
 Тестовая карта в Checkout: **`4242 4242 4242 4242`**, любая дата в будущем, любой CVC.
 
-### 4. Anthropic (опционально)
+### 4. OpenAI (опционально)
 
-Без `ANTHROPIC_API_KEY` AI Coach работает на шаблонных описаниях — приложение демонстрируется в полном виде, просто без живой LLM-нарративы.
+Без `OPENAI_API_KEY` AI Coach работает на шаблонных описаниях — приложение демонстрируется в полном виде, просто без живой LLM-нарративы.
 
 ---
 
@@ -92,7 +105,7 @@ stripe listen --forward-to localhost:8000/api/billing/webhook
 
 ```bash
 git clone https://github.com/your-handle/checkers && cd checkers
-cp .env.example .env       # обязательно укажите DOMAIN, JWT_SECRET, STRIPE_*, ANTHROPIC_API_KEY
+cp .env.example .env       # обязательно укажите DOMAIN, JWT_SECRET, STRIPE_*, OPENAI_API_KEY
 docker compose up -d --build
 ```
 
@@ -116,7 +129,7 @@ docker compose up -d --build
      │                                            │ HTTPS
      │                                            ▼
      │                                     ┌──────────────┐
-     │                                     │ Claude API   │
+     │                                     │ OpenAI API   │
      └─────────────────────────────────────│ Stripe API   │
                                            └──────────────┘
 ```
@@ -124,7 +137,7 @@ docker compose up -d --build
 - Движок шашек — **чистый Python без FastAPI-импортов**, используется и для AI-соперника, и для AI Coach.
 - Server-authoritative: WebSocket принимает только `{type:"move", path}`, валидирует через движок, применяет, броадкастит обновлённое состояние и таймеры.
 - Режимы матчей: `vs_ai`, `friend`, `ranked` (в ranked изменяется ELO; в friend поддержан гостевой вход по ссылке).
-- AI Coach запускается **фоновой задачей** в момент завершения партии: движок размечает ходы (blunder / mistake / brilliant), LLM пишет 3–5 предложений на самые ключевые моменты с prompt-кешированием системного контекста.
+- AI Coach запускается **фоновой задачей** в момент завершения партии: движок размечает ходы (blunder / mistake / brilliant), LLM пишет 3–5 предложений на самые ключевые моменты.
 - Stripe webhook валидирует подпись (`stripe.Webhook.construct_event`) и хранит `event.id` в таблице `stripe_events` для **идемпотентности**.
 - Kids Mode policy: в kids mode отключены чат в партиях и billing endpoints (`/billing/checkout`, `/billing/portal`).
 
@@ -137,7 +150,7 @@ Checkers/
       games/engine/   ← движок русских шашек + alpha-beta поиск
       games/          ← REST + WebSocket multiplayer + clocks + ELO
       auth/           ← JWT-cookies, кэшируемый user lookup
-      coach/          ← анализатор + Claude prompts
+      coach/          ← анализатор + OpenAI prompts
       billing/        ← Stripe Checkout + Portal + webhooks
       leaderboard/    ← global / city / weekly
       puzzles/        ← daily puzzle + streaks

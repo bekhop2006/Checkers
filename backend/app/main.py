@@ -21,10 +21,9 @@ from .puzzles.routes import router as puzzles_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Auto-create tables on startup. Idempotent — SQLAlchemy's create_all
-    # only creates missing tables, so it works for both fresh installs and
-    # restarts. (When schema changes land later, swap this for Alembic.)
-    await create_all()
+    settings = get_settings()
+    if settings.auto_create_schema:
+        await create_all()
     yield
 
 

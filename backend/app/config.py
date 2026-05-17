@@ -21,6 +21,7 @@ class Settings(BaseSettings):
 
     # DB
     database_url: str = "sqlite+aiosqlite:///./checkers.db"
+    auto_create_schema: bool = True
 
     # CORS
     allowed_origins: str = "http://localhost:5173,http://localhost"
@@ -32,9 +33,9 @@ class Settings(BaseSettings):
     refresh_token_ttl_days: int = 30
     ws_ticket_ttl_seconds: int = 60
 
-    # Anthropic
-    anthropic_api_key: str = ""
-    anthropic_model: str = "claude-haiku-4-5"
+    # OpenAI
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
 
     # Stripe
     stripe_secret_key: str = ""

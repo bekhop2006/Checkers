@@ -1,4 +1,4 @@
-.PHONY: help install dev backend frontend test test-backend migrate seed lint build up down logs stripe-listen
+.PHONY: help install dev backend frontend test test-backend migrate seed seed-local seed-docker lint build up down logs stripe-listen
 
 help:
 	@echo "Common targets:"
@@ -8,7 +8,8 @@ help:
 	@echo "  make frontend       - run only the frontend"
 	@echo "  make test           - run all backend tests"
 	@echo "  make migrate        - alembic upgrade head"
-	@echo "  make seed           - seed cities + puzzles"
+	@echo "  make seed           - seed via docker api container (recommended)"
+	@echo "  make seed-local     - seed locally with SQLite override"
 	@echo "  make up             - docker compose up -d --build"
 	@echo "  make down           - docker compose down"
 	@echo "  make logs           - tail docker logs"
@@ -34,7 +35,13 @@ migrate:
 	cd backend && . .venv/bin/activate && alembic upgrade head
 
 seed:
-	cd backend && . .venv/bin/activate && python -m app.scripts.seed
+	docker compose up -d db api
+	docker compose exec api python -m app.scripts.seed
+
+seed-docker: seed
+
+seed-local:
+	cd backend && . .venv/bin/activate && DATABASE_URL=sqlite+aiosqlite:///./checkers.db python -m app.scripts.seed
 
 lint:
 	cd backend && . .venv/bin/activate && ruff check app tests

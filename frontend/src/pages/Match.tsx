@@ -30,7 +30,19 @@ export function Match() {
   }, [id])
 
   const ws = useGameSocket(id, useWS)
-  const game = useWS ? ws.game : restGame
+  const game = useWS ? (ws.game ?? restGame) : restGame
+  useEffect(() => {
+    if (!useWS || !id || ws.connected) return
+    const t = window.setInterval(async () => {
+      try {
+        const latest = await games.get(id)
+        setRestGame(latest)
+      } catch {
+        /* ignore */
+      }
+    }, 2500)
+    return () => window.clearInterval(t)
+  }, [id, useWS, ws.connected])
   const myColor: 0 | 1 | null = useMemo(() => {
     if (!user || !game) return null
     if (game.white_user_id === user.id) return 0
@@ -92,6 +104,11 @@ export function Match() {
       </div>
 
       <aside className="space-y-4">
+        {useWS && ws.error && (
+          <div className="card p-3 text-sm text-danger">
+            {translateWsError(ws.error)}
+          </div>
+        )}
         <ClockPair
           whiteMs={game.white_ms_left}
           blackMs={game.black_ms_left}
@@ -185,4 +202,17 @@ function lastMoveOf(g: GameDetail): { from: Square; to: Square } | null {
   const m = g.moves[g.moves.length - 1]
   if (!m.path || m.path.length < 2) return null
   return { from: m.path[0], to: m.path[m.path.length - 1] }
+}
+
+function translateWsError(code: string): string {
+  return {
+    not_your_turn: 'Сейчас ход соперника.',
+    not_seated: 'Вы не назначены игроком в этой партии.',
+    illegal_move: 'Этот ход недопустим по правилам.',
+    inactive_game: 'Партия уже завершена.',
+    chat_disabled: 'Чат отключён для этого режима.',
+    ws_error: 'Потеряно соединение. Пробуем переподключиться…',
+    ws_not_connected: 'Соединение ещё не установлено. Подождите секунду.',
+    ws_disconnected: 'Соединение разорвано. Переподключаемся…',
+  }[code] ?? `Ошибка игры: ${code}`
 }

@@ -25,7 +25,20 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: any): Promise<T> {
+type RequestOptions = {
+  retriedAuth?: boolean
+}
+
+function canRetryWithRefresh(path: string): boolean {
+  return path !== '/auth/refresh'
+}
+
+async function request<T>(
+  method: string,
+  path: string,
+  body?: any,
+  options: RequestOptions = {},
+): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
@@ -42,6 +55,13 @@ async function request<T>(method: string, path: string, body?: any): Promise<T> 
     }
   }
   if (!res.ok) {
+    if (res.status === 401 && !options.retriedAuth && canRetryWithRefresh(path)) {
+      try {
+        await request('POST', '/auth/refresh', undefined, { retriedAuth: true })
+        return await request<T>(method, path, body, { retriedAuth: true })
+      } catch {
+      }
+    }
     const message =
       (payload && typeof payload === 'object' && (payload.detail || payload.message)) ||
       res.statusText

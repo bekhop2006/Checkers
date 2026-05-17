@@ -1,4 +1,4 @@
-"""Anthropic Claude client with prompt caching.
+"""OpenAI client for the AI Coach.
 
 Falls back to a template-only response when no API key is configured,
 so the app can demo end-to-end without paid credentials.
@@ -13,18 +13,18 @@ from ..config import get_settings
 from .prompts import SYSTEM_PROMPTS, fallback_narrative
 
 try:
-    from anthropic import AsyncAnthropic
+    from openai import AsyncOpenAI
 except Exception:  # pragma: no cover - optional dependency at import time
-    AsyncAnthropic = None  # type: ignore[assignment]
+    AsyncOpenAI = None  # type: ignore[assignment]
 
 
 class CoachLLM:
     def __init__(self) -> None:
         s = get_settings()
-        self.enabled = bool(s.anthropic_api_key) and AsyncAnthropic is not None
-        self.model = s.anthropic_model
+        self.enabled = bool(s.openai_api_key) and AsyncOpenAI is not None
+        self.model = s.openai_model
         self.client: Any = (
-            AsyncAnthropic(api_key=s.anthropic_api_key) if self.enabled else None
+            AsyncOpenAI(api_key=s.openai_api_key) if self.enabled else None
         )
 
     async def narrate(
@@ -38,22 +38,15 @@ class CoachLLM:
             return fallback_narrative(classification)
         system_text = SYSTEM_PROMPTS.get(audience, SYSTEM_PROMPTS["adult"])
         try:
-            resp = await self.client.messages.create(
+            resp = await self.client.chat.completions.create(
                 model=self.model,
                 max_tokens=220,
-                system=[
-                    {
-                        "type": "text",
-                        "text": system_text,
-                        # Static rules + style => cache it across moves of the same review.
-                        "cache_control": {"type": "ephemeral"},
-                    }
+                messages=[
+                    {"role": "system", "content": system_text},
+                    {"role": "user", "content": user_message},
                 ],
-                messages=[{"role": "user", "content": user_message}],
             )
-            # Concatenate all text blocks.
-            parts = [b.text for b in resp.content if getattr(b, "type", None) == "text"]
-            text = " ".join(parts).strip()
+            text = (resp.choices[0].message.content or "").strip()
             return text or fallback_narrative(classification)
         except Exception:
             return fallback_narrative(classification)

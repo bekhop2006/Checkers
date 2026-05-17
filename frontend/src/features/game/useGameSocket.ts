@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { auth } from '../../lib/api'
+import { ApiError, auth } from '../../lib/api'
 import type { GameDetail, WSMessage } from '../../types'
 
 const WS_BASE = (import.meta.env.VITE_WS_BASE as string) || '/ws'
@@ -18,9 +18,29 @@ export function useGameSocket(gameId: number | null, enabled: boolean) {
 
     let cancelled = false
 
+    const scheduleReconnect = (reason?: string) => {
+      if (cancelled) return
+      const tries = ++reconnectRef.current.tries
+      const wait = Math.min(1500 * tries, 15_000)
+      if (reason) setError(reason)
+      reconnectRef.current.timer = window.setTimeout(() => connect(), wait)
+    }
+
     const connect = async () => {
       try {
-        const { ticket } = await auth.wsTicket(gameId)
+        let ticket: string
+        try {
+          const t = await auth.wsTicket(gameId)
+          ticket = t.ticket
+        } catch (e) {
+          if (e instanceof ApiError && e.status === 401) {
+            await auth.refresh()
+            const t = await auth.wsTicket(gameId)
+            ticket = t.ticket
+          } else {
+            throw e
+          }
+        }
         if (cancelled) return
         // Build absolute ws:// URL from window.location.
         const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -32,6 +52,7 @@ export function useGameSocket(gameId: number | null, enabled: boolean) {
         wsRef.current = ws
         ws.onopen = () => {
           setConnected(true)
+          setError(null)
           reconnectRef.current.tries = 0
           ws.send(JSON.stringify({ type: 'hello' }))
         }
@@ -40,6 +61,7 @@ export function useGameSocket(gameId: number | null, enabled: boolean) {
             const msg: WSMessage = JSON.parse(ev.data)
             if (msg.type === 'state') {
               setGame(msg as unknown as GameDetail)
+              setError(null)
             } else if (msg.type === 'tick') {
               setGame((g) =>
                 g ? { ...g, white_ms_left: msg.white_ms_left, black_ms_left: msg.black_ms_left } : g,
@@ -53,14 +75,13 @@ export function useGameSocket(gameId: number | null, enabled: boolean) {
         }
         ws.onclose = () => {
           setConnected(false)
+          wsRef.current = null
           if (cancelled) return
-          const tries = ++reconnectRef.current.tries
-          const wait = Math.min(2000 * tries, 15_000)
-          reconnectRef.current.timer = window.setTimeout(() => connect(), wait)
+          scheduleReconnect('ws_disconnected')
         }
         ws.onerror = () => setError('ws_error')
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'connect_failed')
+        scheduleReconnect(e instanceof Error ? e.message : 'connect_failed')
       }
     }
 
@@ -73,7 +94,14 @@ export function useGameSocket(gameId: number | null, enabled: boolean) {
     }
   }, [gameId, enabled])
 
-  const send: Sender = (m) => wsRef.current?.send(JSON.stringify(m))
+  const send: Sender = (m) => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      setError('ws_not_connected')
+      return
+    }
+    ws.send(JSON.stringify(m))
+  }
 
   return { game, connected, error, send }
 }
