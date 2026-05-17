@@ -1,0 +1,13 @@
+{
+  "name": "blitz-checkers",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "dev:web": "pnpm --filter web dev",
+    "dev:party": "pnpm --filter party dev",
+    "build": "pnpm -r build",
+    "test": "pnpm --filter @checkers/engine test",
+    "lint": "pnpm -r lint"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

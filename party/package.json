@@ -1,0 +1,16 @@
+{
+  "name": "party",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "partykit dev",
+    "deploy": "partykit deploy"
+  },
+  "dependencies": {
+    "@checkers/engine": "workspace:*",
+    "partykit": "^0.0.110"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}
