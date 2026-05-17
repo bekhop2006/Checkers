@@ -6,6 +6,7 @@ import {
   getLegalMoves,
   moveToNotation,
   type Color,
+
   type Move,
 } from "@checkers/engine";
 import type {
@@ -196,17 +197,17 @@ export default class CheckersRoom implements Party.Server {
       boardState: this.game.boardState,
       white: this.game.white
         ? {
-            userId: this.game.white.userId,
-            username: this.game.white.username,
-            elo: this.game.white.elo,
-          }
+          userId: this.game.white.userId,
+          username: this.game.white.username,
+          elo: this.game.white.elo,
+        }
         : null,
       black: this.game.black
         ? {
-            userId: this.game.black.userId,
-            username: this.game.black.username,
-            elo: this.game.black.elo,
-          }
+          userId: this.game.black.userId,
+          username: this.game.black.username,
+          elo: this.game.black.elo,
+        }
         : null,
       status: this.game.status,
       clocks: this.game.clocks,
